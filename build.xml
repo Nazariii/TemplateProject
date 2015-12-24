@@ -1,0 +1,203 @@
+<?xml version="1.0"?>
+<project name="velocity" basedir="." default="usage" xmlns:ivy="antlib:org.apache.ivy.ant">
+
+	<property file="build.properties"/>
+
+	<target name="usage">
+		<echo message=""/>
+		<echo message="${name} build file"/>
+		<echo message="-----------------------------------"/>
+		<echo message=""/>
+		<echo message="Available targets are:"/>
+		<echo message=""/>
+		<echo message="deploy    --&gt; Deploy application as directory"/>
+		<echo message="deploywar --&gt; Deploy application as a WAR file"/>
+		<echo message=""/>
+	</target>
+
+	<target name="mkdir">
+		<mkdir dir="${src.dir}"/>
+		<mkdir dir="${web.dir}"/>
+		<mkdir dir="${javadoc.dir}"/>
+	</target>
+
+	<path id="master-classpath">
+		<fileset dir="${web.dir}/WEB-INF/lib">
+			<include name="*.jar"/>
+		</fileset>
+		<pathelement path="${build.dir}"/>
+	</path>
+
+	<target name="build" description="Compile main source tree java files">
+		<mkdir dir="${build.dir}"/>
+		<javac destdir="${build.dir}" includeantruntime="false" source="1.8" target="1.8" debug="true"
+      deprecation="false" optimize="false" failonerror="false">
+			<src path="${src.dir}"/>
+			<classpath refid="master-classpath"/>
+		</javac>
+	</target>
+
+	<target name="clean" description="Clean output directories">
+		<delete>
+			<fileset dir="${build.dir}">
+				<include name="**/*.class"/>
+			</fileset>
+		</delete>
+	</target>
+
+	<target name="jar">
+		<jar destfile = "${web.dir}/lib/util.jar"
+	   basedir = "${build.dir}"
+	   includes = "faxapp/util/**"
+	   excludes = "**/Test.class">
+			<manifest>
+				<attribute name = "Main-Class" value = "faxapp.util.Main2"/>
+			</manifest>
+		</jar>
+	</target>
+
+	<target name="build-war">
+		<war destfile = "${name}.war" webxml = "${web.dir}/WEB-INF/web.xml">
+			<fileset dir = "${web.dir}">
+				<include name = "**/*.*"/>
+				<exclude name = "**/*.class"/>
+			</fileset>
+			<classes dir = "${build.dir}"/>
+
+		</war>
+	</target>
+
+	<target name = "deploy" depends = "build" description = "Deploy application">
+		<copy todir = "${deploy.path}/${name}" preservelastmodified = "true">
+			<fileset dir = "${web.dir}">
+				<include name = "**/*.*"/>
+			</fileset>
+
+		</copy>
+		<echo message = "${deploy.path}"/>
+
+	</target>
+
+	<target name = "deploywar" depends = "build, build-war" description = "Deploy application as a WAR file">
+
+		<copy todir = "${deploy.path}" preservelastmodified = "true">
+			<fileset dir = ".">
+				<include name = "*.war"/>
+			</fileset>
+		</copy>
+
+	</target>
+
+	<!-- ============================================================ -->
+	<!-- Tomcat tasks -->
+	<!-- ============================================================ -->
+
+	<path id="catalina-ant-classpath">
+		<!-- We need the Catalina jars for Tomcat -->
+		<!--  * for other app servers - check the docs -->
+
+		<fileset dir="${appserver.lib}">
+			<include name="catalina-ant.jar"/>
+			<include name="tomcat-coyote.jar"/>
+			<include name="tomcat-util.jar"/>
+		</fileset>
+		<fileset dir="${appserver.bin}">
+			<include name="tomcat-juli.jar"/>
+		</fileset>
+	</path>
+
+	<taskdef name="deploy" classname="org.apache.catalina.ant.DeployTask">
+		<classpath refid="catalina-ant-classpath"/>
+	</taskdef>
+	<taskdef name="reload" classname="org.apache.catalina.ant.ReloadTask">
+		<classpath refid="catalina-ant-classpath"/>
+	</taskdef>
+	<taskdef name="list" classname="org.apache.catalina.ant.ListTask">
+		<classpath refid="catalina-ant-classpath"/>
+	</taskdef>
+	<taskdef name="start" classname="org.apache.catalina.ant.StartTask">
+		<classpath refid="catalina-ant-classpath"/>
+	</taskdef>
+	<taskdef name="stop" classname="org.apache.catalina.ant.StopTask">
+		<classpath refid="catalina-ant-classpath"/>
+	</taskdef>
+
+	<taskdef name="undeploy" classname="org.apache.catalina.ant.UndeployTask">
+		<classpath refid="catalina-ant-classpath"/>
+	</taskdef>
+
+	<target name="s-deploy" depends = "deploywar" description="Install web application" >
+		<echo message=""/>
+		<deploy  url="${tomcat.manager.url}" username="${tomcat.manager.username}" 
+		password="${tomcat.manager.password}"
+            path="/${name}" war="file:${deploy.path}/${name}.war" 
+			failonerror="false"  />
+	</target>
+
+	<target name="s-undeploy" depends="s-stop" description="Undeploy web application" >
+		<echo message=""/>
+		<undeploy  url="${tomcat.manager.url}" username="${tomcat.manager.username}" 
+		password="${tomcat.manager.password}"
+            path="/${name}" />
+	</target>
+
+	<target name="s-start" description="Start web application" >
+		<echo message=""/>
+		<start  url="${tomcat.manager.url}" username="${tomcat.manager.username}" 
+		password="${tomcat.manager.password}"
+            path="/${name}"/>
+	</target>
+
+	<target name="s-stop" description="Stop web application" >
+		<echo message=""/>
+		<stop  url="${tomcat.manager.url}" username="${tomcat.manager.username}" 
+		password="${tomcat.manager.password}"
+            path="/${name}"/>
+	</target>
+
+	<target name="s-reload" description="Reload application in Tomcat">
+		<reload url="${tomcat.manager.url}" username="${tomcat.manager.username}" 
+		password="${tomcat.manager.password}" path="/${name}"/>
+	</target>
+
+	<!-- ============================================================ -->
+	<!-- Tomcat start/stop -->
+	<!-- ============================================================ -->
+	<target name="tomcat-restart">
+		<antcall target="tomcat-stop" />
+		<antcall target="tomcat-start" />
+	</target>
+
+	<target name="tomcat-start">
+		<java classname="org.apache.catalina.startup.Bootstrap" fork="true">
+			<classpath path="${appserver.home}/bin/bootstrap.jar:${appserver.home}/bin/tomcat-juli.jar" />
+			<jvmarg value="-Dcatalina.home=${appserver.home}"/>
+			<!--If you are getting any OutOfMemoryError, remove the comments 
+            and enable jvm argument of the following line-->
+			<!--jvmarg value="-XX:MaxPermSize=256m"/-->
+		</java>
+	</target>
+
+	<target name="tomcat-stop">
+		<java classname="org.apache.catalina.startup.Bootstrap" fork="true">
+			<classpath path="${appserver.home}/bin/bootstrap.jar:${appserver.home}/bin/tomcat-juli.jar" />
+			<jvmarg value="-Dcatalina.home=${appserver.home}"/>
+			<arg line="stop"/>
+		</java>
+	</target>
+
+	<!-- ============================================================ -->
+	<!-- Tomcat deploy and start -->
+	<!-- ============================================================ -->
+
+	<target name="tc-start-deploy">
+		<antcall target="tomcat-stop" />
+		<antcall target="deploywar" />
+		<antcall target="tomcat-start" />
+	</target>
+
+	<target name="test" description="Test ivy installation">
+		<ivy:settings />
+	</target>
+
+</project>

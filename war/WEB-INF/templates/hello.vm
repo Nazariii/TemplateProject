@@ -1,0 +1,36 @@
+<html>
+<head>
+    <title>Customer Search Results - $customer.customerNumber</title>
+</head>
+<body bgcolor="#faf7f1">
+<h1>Customer information for customer number $customer.customerNumber</h1>
+<b>Name:</b> $customer.name<br>
+<b>Address:</b> $customer.address<br>
+<b>City:</b> $customer.city<br>
+<b>State:</b> $customer.state<br>
+<b>Zip:</b> $customer.zip<br>
+<b>Phone:</b> $customer.phone<br>
+<p>
+<h3>Recent Invoices:</h3>
+<table border=1 cellspacing="0" cellpadding="5" >
+<tr bgcolor="#FFFF00">
+    <th>Order Date</th>
+    <th>Ship Date</th>
+    <th>Shipping Charge</th>
+    <th>Tax</th>
+    <th>Total Cost</th>
+</tr>
+
+#foreach ($invoice in $customer.invoices)
+    <tr>
+        <td>$invoice.orderDateDisplay</td>
+        <td>$invoice.shipDateDisplay</td>
+        <td>$invoice.shipTotalDisplay</td>
+        <td>$invoice.taxTotalDisplay</td>
+        <td>$invoice.invoiceTotalDisplay</td>
+    </tr>
+#end
+
+</table>
+</body>
+<html>
